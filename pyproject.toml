@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multipred"
+description = "Code to replicate fmri multipred study"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+dynamic = ["version", "readme"]
+dependencies = [
+    "numpy>=1.26.4",
+    "pandas>=2.2.2",
+    "matplotlib>=3.8.4",
+    "seaborn>=0.13.2",
+    "pingouin>=0.5.5",
+    "scipy>=1.13.0",
+]
+authors = [
+    {name="Marc Sabio-Albert", email="marcsabioalbert@gmail.com"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+repository = "https://github.com/memory-formation/multipred-fmri"
+
+[tool.setuptools.packages.find]
+include = ["multipred*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "multipred.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
