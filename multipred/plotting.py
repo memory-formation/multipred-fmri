@@ -4,7 +4,10 @@ import pandas as pd
 import pingouin as pg
 import seaborn as sns
 from matplotlib.patches import Patch
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import stats
+
+from multipred.data import extract_slice, validate_mri_input
 
 
 def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None):
@@ -501,3 +504,199 @@ def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax
 
     # Adjust y-limits dynamically with a small buffer
     ax.set_ylim(y_ticks[0] - tick_step * 0.5, y_ticks[-1] + tick_step * 0.5)
+
+
+# WHOLE BRAIN PLOTTING
+
+def plot_static_slices(
+    cope,
+    zstat,
+    z_thresh,
+    slice_positions,
+    mni_template,
+    axis="z",
+    clim=(-30, 30),
+    contour_level=2.3,
+    z_lim=False,
+    background="white",
+    flip_axial=False,
+    title="Static Slices",
+):
+    """
+    Plot static slices with:
+    - MNI brain template as the base layer.
+    - Cope data color-coded with 'bwr'.
+    - Alpha transparency based on zstat values.
+    - Contours drawn around significant clusters in z_thresh.
+
+    Parameters:
+    - cope: 3D input (file path, Nifti1Image, or NumPy array) for cope values.
+    - zstat: 3D input (file path, Nifti1Image, or NumPy array) for zstat values.
+    - z_thresh: 3D input (file path, Nifti1Image, or NumPy array) for thresholded clusters.
+    - mni_template: 3D input (file path, Nifti1Image, or NumPy array) for the MNI template.
+    - slice_positions: List of slice indices along the specified axis.
+    - axis: Axis to slice ('x', 'y', or 'z').
+    - clim: Color limits for cope values.
+    - contour_level: Level for contours based on z_thresh.
+    - background: Background color ('white' or 'black').
+    - flip_axial: Flip z-axis slices to have posterior bottom, anterior top.
+    """
+    # Validate and load inputs
+    cope = validate_mri_input(cope)
+    zstat = validate_mri_input(zstat)
+    z_thresh = validate_mri_input(z_thresh)
+    mni_template = validate_mri_input(mni_template)
+
+    # Check for consistent dimensions
+    if not (cope.shape == zstat.shape == z_thresh.shape == mni_template.shape):
+        raise ValueError(
+            "Input volumes (cope, zstat, z_thresh, mni_template) must have the same shape."
+        )
+
+    # Set figure background color
+    if background == "black":
+        facecolor = "black"
+        textcolor = "white"
+    elif background == "white":
+        facecolor = "white"
+        textcolor = "black"
+    else:
+        raise ValueError("Invalid background color. Choose 'white' or 'black'.")
+
+    # Plotting
+    n_slices = len(slice_positions)
+    fig, axes = plt.subplots(
+        1, n_slices + 1, figsize=(5 * n_slices, 5), facecolor=facecolor
+    )  # +1 for colorbar
+
+    # Ensure axes is always a list
+    axes = np.ravel(axes).tolist()
+
+    im = None  # Initialize im to ensure it is defined for colorbar
+    for i, pos in enumerate(slice_positions):
+        ax = axes[i]
+
+        # Extract slices
+        mni_slice = extract_slice(mni_template, axis, pos, flip_axial=flip_axial)
+        cope_slice = extract_slice(cope, axis, pos, flip_axial=flip_axial)
+        zstat_slice = extract_slice(zstat, axis, pos, flip_axial=flip_axial)
+        z_thresh_slice = extract_slice(z_thresh, axis, pos, flip_axial=flip_axial)
+
+        # Normalize zstat for alpha
+        if z_lim:
+            alpha = np.clip((zstat_slice - z_lim[0]) / (z_lim[1] - z_lim[0]), 0, 1)
+        else:
+            alpha = np.clip(
+                (zstat_slice - np.min(zstat_slice))
+                / (np.max(zstat_slice) - np.min(zstat_slice)),
+                0,
+                1,
+            )
+
+        # Plot MNI brain template as base
+        ax.imshow(mni_slice, cmap="gray", origin="lower", interpolation="nearest")
+
+        # Overlay cope values with alpha blending
+        im = ax.imshow(cope_slice, cmap="bwr", alpha=alpha, origin="lower", clim=clim)
+
+        # Draw contours around significant clusters in black
+        ax.contour(z_thresh_slice, levels=[contour_level], colors="black", linewidths=2)
+
+        ax.axis("off")
+        ax.set_title(f"Slice {pos} ({axis})", color=textcolor)
+
+    # # Add colorbar
+    divider = make_axes_locatable(axes[-1])
+    cax = divider.append_axes("bottom", size="20%", pad=0.5)  # Adjust size as needed
+    cbar = fig.colorbar(im, cax=cax, orientation="horizontal")
+    cbar.set_label("EXP - UEX", color=textcolor)
+
+    if not z_lim:
+        cbar.ax.axhline(
+            y=contour_level / np.max(zstat_slice), color="black", linewidth=2
+        )
+    else:
+        cbar.ax.axhline(y=contour_level / z_lim[1], color="black", linewidth=2)
+
+    # Set colorbar text color
+    cbar.ax.xaxis.set_tick_params(color=textcolor)
+    cbar.ax.yaxis.set_tick_params(color=textcolor)
+    plt.setp(plt.getp(cbar.ax.axes, "xticklabels"), color=textcolor)
+    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color=textcolor)
+    plt.suptitle(title, color=textcolor)
+
+    # Return the figure for saving
+    return fig
+
+
+def plot_3dims(
+    cope, zstat, z_thresh, slice_positions, mni_template,
+    clim=(-30, 30), contour_level=2.3, z_lim = False, flip_axial=False, title='Static Slices'
+):
+    """
+    Plot static slices with:
+    - MNI brain template as the base layer.
+    - Cope data color-coded with 'bwr'.
+    - Alpha transparency based on zstat values.
+    - Contours drawn around significant clusters in z_thresh.
+
+    Parameters:
+    - cope: 3D input (file path, Nifti1Image, or NumPy array) for cope values.
+    - zstat: 3D input (file path, Nifti1Image, or NumPy array) for zstat values.
+    - z_thresh: 3D input (file path, Nifti1Image, or NumPy array) for thresholded clusters.
+    - mni_template: 3D input (file path, Nifti1Image, or NumPy array) for the MNI template.
+    - slice_positions: List of slice indices along the specified axis.
+    - axis: Axis to slice ('x', 'y', or 'z').
+    - clim: Color limits for cope values.
+    - contour_level: Level for contours based on z_thresh.
+    - background: Background color ('white' or 'black').
+    - flip_axial: Flip z-axis slices to have posterior bottom, anterior top.
+    """
+    # Validate and load inputs
+    cope = validate_mri_input(cope)
+    zstat = validate_mri_input(zstat)
+    z_thresh = validate_mri_input(z_thresh)
+    mni_template = validate_mri_input(mni_template)
+
+    # Check for consistent dimensions
+    if not (cope.shape == zstat.shape == z_thresh.shape == mni_template.shape):
+        raise ValueError("Input volumes (cope, zstat, z_thresh, mni_template) must have the same shape.")
+
+
+    # Plotting
+    n_slices = len(slice_positions)
+    fig, axes = plt.subplots(1, 3, figsize=(5 * n_slices, 5)) # +1 for colorbar
+    dims = ['x', 'y', 'z']
+
+    for i, pos in enumerate(slice_positions):
+        ax = axes[i]
+
+        # Extract slices
+        mni_slice = extract_slice(mni_template, dims[i], pos, flip_axial=flip_axial)
+        cope_slice = extract_slice(cope, dims[i], pos, flip_axial=flip_axial)
+        zstat_slice = extract_slice(zstat, dims[i], pos, flip_axial=flip_axial)
+        z_thresh_slice = extract_slice(z_thresh, dims[i], pos, flip_axial=flip_axial)
+
+        # Normalize zstat for alpha
+        if z_lim:
+            alpha = np.clip((zstat_slice - z_lim[0]) / (z_lim[1] - z_lim[0]), 0, 1)
+        else:
+            alpha = np.clip((zstat_slice - np.min(zstat_slice)) / (np.max(zstat_slice) - np.min(zstat_slice)), 0, 1)
+
+        # Plot MNI brain template as base
+        ax.imshow(mni_slice, cmap='gray', origin='lower', interpolation='nearest')
+
+        # Overlay cope values with alpha blending
+        im = ax.imshow(cope_slice, cmap='bwr', alpha=alpha, origin='lower', clim=clim)
+        
+        # Draw contours around significant clusters in black
+        ax.contour(z_thresh_slice, levels=[contour_level], colors='black', linewidths=2)
+
+        ax.axis('off')
+        ax.set_title(f"Slice {pos} ({dims[i]})")
+
+        plt.suptitle(title)
+
+
+    # Return the figure for saving
+    return fig
