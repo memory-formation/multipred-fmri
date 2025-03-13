@@ -9,6 +9,79 @@ from scipy import stats
 
 from multipred.data import extract_slice, validate_mri_input
 
+def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None):
+    # Step 1: Normalize within subjects by subtracting the subject-specific mean
+    dat['subject_mean'] = dat.groupby('subj')[y].transform('mean')
+    dat['cousineau_normalized'] = dat[y] - dat['subject_mean']
+
+    # Step 2: Add the grand mean to retain interpretability
+    grand_mean = dat[y].mean()
+    dat['cousineau_normalized'] += grand_mean
+
+    # Step 3: Compute group-level mean and Cousineau-Morey corrected SE
+    n_conditions = dat[x].nunique()
+    cousineau_summary = dat.groupby(x).agg(
+        group_mean=('cousineau_normalized', 'mean'),
+        corrected_se=('cousineau_normalized', lambda x: x.std() / np.sqrt(len(x)) * np.sqrt(n_conditions / (n_conditions - 1)))
+    ).reset_index()
+
+    # Step 4: Plot
+    if ax is None:
+        ax = plt.gca()  # Use the current axis if none is provided
+
+    if barplot_plot:
+        sns.barplot(
+            data=cousineau_summary,
+            x=x,
+            y='group_mean',
+            palette=palette1,
+            errorbar=None,
+            ax=ax,
+            legend=False
+        )
+
+    if swarmplot_plot:
+        sns.swarmplot(
+            data=dat,
+            x=x,
+            y=y,
+            palette=palette2,
+            size=6,
+            alpha=1,
+            edgecolor="grey",
+            linewidth=0.5,
+            ax=ax,
+            legend=False
+        )
+
+    if within_lines:
+        # Add lines connecting within-subject data points
+        for subject_id in dat['subj'].unique():
+            subject_data = dat[dat['subj'] == subject_id]
+            x_positions = [list(dat[x].unique()).index(level) for level in subject_data[x]]
+            ax.plot(
+                x_positions,
+                subject_data[y].values,
+                color='grey',
+                linewidth=0.5,
+                alpha=0.7
+            )
+
+    # Overlay means with Cousineau-Morey SE
+    for _, row in cousineau_summary.iterrows():
+        x_position = list(dat[x].unique()).index(row[x])
+        ax.errorbar(
+            x=x_position,
+            y=row['group_mean'],
+            yerr=row['corrected_se'],
+            fmt='o',
+            color='black',
+            capsize=4,
+            elinewidth=2,
+            markersize=0,
+            zorder=10
+        )
+
 
 def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None):
     # Step 1: Normalize within subjects by subtracting the subject-specific mean
@@ -180,7 +253,9 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
     plt.tight_layout()
 
     if save_fig:
-        plt.savefig(f"figures/{ROI}_interaction.svg", dpi=300, bbox_inches="tight")
+        plt.savefig(f"figures/MVPA/{ROI}_acc_interaction.svg", dpi=300, bbox_inches="tight")
+
+    plt.show()
 
     # Save the results as dataframes
     anova_df = pd.concat(anova_results).reset_index()
@@ -253,7 +328,7 @@ def plot_errobars(df, cond, y, palette, x_offset, ax=None):
 
     return ax  # Return the axis (useful for subplots)
 
-def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred):
+def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig=False):
     # concatenate all the dataframes for the different ROIs
     n_voxels_int = [int(n) for n in n_voxels_list[:-2]]; n_voxels_int.extend([n_voxels_int[-1] + 50, n_voxels_int[-1] + 100]) # Convert to int for xticks
     for i, n_voxels in zip(n_voxels_int, n_voxels_list):
@@ -278,7 +353,7 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred):
         )
 
         print(
-            f"{n_subj} subjects in {n_voxels} voxels mask. t({n_subj-1})={t_visual:.4f}, p={p_visual:.4f}. Auditory modality: t({n_subj-1})={t_auditory:.4f}, p={p_auditory:.4f}"
+            f"{n_subj} subjects in {n_voxels} voxels mask. Visual modality: t({n_subj-1})={t_visual:.4f}, p={p_visual:.4f}. Auditory modality: t({n_subj-1})={t_auditory:.4f}, p={p_auditory:.4f}"
         )
 
         # concatenate the dataframes
@@ -319,7 +394,7 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred):
 
     # Format both subplots
     for i in range(2):
-        #ax[i].set_ylim(0.45, 0.7)
+        ax[i].set_ylim(0.45, 0.7)
         ax[i].axhline(y=0.5, color="grey", linestyle="--")
         ax[i].set_xlabel("Number of Voxels")
         ax[i].set_xticks(n_voxels_int)
@@ -331,6 +406,8 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred):
     ax[1].set_title("Auditory attended")
 
     plt.tight_layout()
+    if save_fig:
+        plt.savefig(f"figures/MVPA/{ROI}_decoding_nvoxels.svg", dpi=300, bbox_inches="tight")
     plt.show()
 
     return df_allROIs

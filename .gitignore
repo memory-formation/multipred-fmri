@@ -171,3 +171,17 @@ cython_debug/
 .pypirc
 
 data/
+
+# Media types
+*.svg
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.tif
+*.tiff
+*.csv
+*.parquet
+figures/

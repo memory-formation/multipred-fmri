@@ -2,7 +2,7 @@ import numpy as np
 import nibabel as nib
 import os
 
-
+ 
 def extract_slice(data, axis, position, flip_axial=False):
     """Extract a 2D slice from 3D data and optionally flip axial slices."""
     if axis == "x":
