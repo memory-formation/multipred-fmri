@@ -83,7 +83,7 @@ def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, s
         )
 
 
-def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None):
+def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12):
     # Step 1: Normalize within subjects by subtracting the subject-specific mean
     dat['subject_mean'] = dat.groupby('subj')[y].transform('mean')
     dat['cousineau_normalized'] = dat[y] - dat['subject_mean']
@@ -170,13 +170,17 @@ def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=Tr
             zorder=10
         )
 
+    # Set axis labels and tick labels
+    ax.set_xlabel(ax.get_xlabel(), fontsize=fontsize)
+    ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+    ax.tick_params(axis='both', labelsize=fontsize)
 
     # Create legend handles using the hue levels and the corresponding palette colors
     legend_handles = [Patch(facecolor=palette1[i], label=hue_level) for i, hue_level in enumerate(hue_levels)]
 
     # Add legend to the plot only if there are valid handles
     if legend_handles:
-        ax.legend(handles=legend_handles, title=hue_label, loc='upper left', bbox_to_anchor=(1, 1))
+        ax.legend(handles=legend_handles, title=hue_label, bbox_to_anchor=(1, 1), title_fontsize=fontsize, fontsize=fontsize-2, loc='best', frameon=True)
 
 
 def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yticks):
@@ -190,7 +194,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
     n_cols = len(unique_modalities)
 
     # Create the figure and axes for the subplots
-    fig, axes = plt.subplots(1, n_cols, figsize=(10, 7))
+    fig, axes = plt.subplots(1, n_cols, figsize=(10, 4))
 
     # Prepare a dictionary to store ANOVA and post-hoc results
     anova_results = {}
@@ -216,7 +220,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
 
         swarmplot_plot = False
         within_lines = False
-        barplot_plot = False
+        barplot_plot = True
 
         # Define the color palettes
         palette1 = ["firebrick", "turquoise"]
