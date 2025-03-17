@@ -9,7 +9,7 @@ from scipy import stats
 
 from multipred.data import extract_slice, validate_mri_input
 
-def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None):
+def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12):
     # Step 1: Normalize within subjects by subtracting the subject-specific mean
     dat['subject_mean'] = dat.groupby('subj')[y].transform('mean')
     dat['cousineau_normalized'] = dat[y] - dat['subject_mean']
@@ -81,6 +81,10 @@ def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, s
             markersize=0,
             zorder=10
         )
+            # Set axis labels and tick labels
+    ax.set_xlabel(ax.get_xlabel(), fontsize=fontsize)
+    ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+    ax.tick_params(axis='both', labelsize=fontsize)
 
 
 def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12):
