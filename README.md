@@ -3,7 +3,13 @@
 This repository contains the scripts and code required to replicate the analyses for the study **[]**.
 
 ## Environment Setup
-To ensure compatibility, use the provided `pyproject.toml` :
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/memory-formation/multipred-fmri.git
+   ```
+
+2. To ensure compatibility, use the provided `pyproject.toml` :
 
 ```bash
 python -m venv venv
@@ -13,14 +19,9 @@ pip install -e . # This command will install requirements listed in the pyprojec
 
 ## Dataset
 The dataset is hosted on OpenNeuro and **must be downloaded separately**. To ensure proper integration:
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/yourproject.git
-   ```
-2. Download the dataset from OpenNeuro:
+1. Download the dataset from OpenNeuro:
    - [Dataset Link](https://openneuro.org/datasets/XXXXX)
-3. Place the dataset in the cloned repository folder, and rename it as *data/*:
+2. Place the dataset in the cloned repository folder, and rename it as *data/*:
    ```
    mulitpred-fmri/
    ├── data/  # Place the downloaded dataset here
