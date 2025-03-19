@@ -12,6 +12,7 @@ This repository contains the scripts and code required to reproduce the analyses
 2. To ensure compatibility, use the provided `pyproject.toml` :
 
 ```bash
+cd "path/to/your/project/multipred-fmri/"
 python -m venv venv
 source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 pip install -e . # This command will install requirements listed in the pyproject.toml
