@@ -1,4 +1,4 @@
-# Instructiond
+# Instructions
 
 This repository contains the scripts and code required to reproduce the analyses for the study **[]**.
 
