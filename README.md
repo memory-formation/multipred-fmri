@@ -1,6 +1,6 @@
-# MULTIPRED
+# Instructiond
 
-This repository contains the scripts and code required to replicate the analyses for the study **[]**.
+This repository contains the scripts and code required to reproduce the analyses for the study **[]**.
 
 ## Environment Setup
 1. Clone this repository:
