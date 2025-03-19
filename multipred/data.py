@@ -203,3 +203,54 @@ def compute_dprime(data, signal_col, condition_cols=None):
         results.append(result)
 
     return pd.DataFrame(results)
+
+
+def voxel_selection(subj, input_img, ROI_mask, nvoxels, zthresh, out_img):
+    """
+    This function takes in a subject ID, input image, ROI mask, z threshold, number of voxels to select, and output image path.
+    It will load the input image and ROI mask, set all voxels outside of the ROI mask to 0, and then select the top nvoxels voxels
+    above the z threshold. It will then save the mask as a nifti image.
+    """
+    func = nib.load(input_img) # Load input image
+    func_data = func.get_fdata()
+
+    mask = nib.load(ROI_mask) # Load ROI mask image
+    anat_mask = mask.get_fdata()
+
+    func_data[anat_mask == 0] = 0 # Set all voxels outside of the anatomical mask to 0
+
+    # Checking if there are enough voxels in the mask to proceed with voxel selection
+    nonzero_voxels = np.count_nonzero(func_data) 
+    if nonzero_voxels < nvoxels: 
+        print(f"{subj} has less than {nvoxels} voxels above a z threshold of {zthresh} ({nonzero_voxels} significant voxels in the mask: {ROI_mask}).")
+        return False
+    else: 
+        nvoxels_threshold = np.sort(func_data.flatten())[-nvoxels] # Get the nth highest value in the data
+        # Create a binary mask of the nvoxels
+        nvoxels_mask = np.zeros(func_data.shape)
+        nvoxels_mask[func_data >= nvoxels_threshold] = 1
+        # Save the mask
+        nvoxels_mask_img = nib.Nifti1Image(nvoxels_mask, func.affine)
+        nib.save(nvoxels_mask_img, out_img)
+        
+        return True
+    
+
+def voxel_selection_simple(input_img, ROI_mask, out_img):
+    """
+    This function takes in a subject ID, input image, ROI mask, z threshold, number of voxels to select, and output image path.
+    It will load the input image and ROI mask, set all voxels outside of the ROI mask to 0, and then select the top nvoxels voxels
+    above the z threshold. It will then save the mask as a nifti image.
+    """
+    func = nib.load(input_img) # Load input image
+    func_data = func.get_fdata()
+
+    mask = nib.load(ROI_mask) # Load ROI mask image
+    anat_mask = mask.get_fdata()
+
+    anat_mask[func_data == 0] = 0 # Set all voxels with no activation during localizer to 0
+
+    out_mask_img = nib.Nifti1Image(anat_mask, mask.affine)
+    nib.save(out_mask_img, out_img)
+
+    return 
