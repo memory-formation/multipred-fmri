@@ -87,7 +87,7 @@ def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, s
     ax.tick_params(axis='both', labelsize=fontsize)
 
 
-def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12):
+def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12, legend=True):
     # Step 1: Normalize within subjects by subtracting the subject-specific mean
     dat['subject_mean'] = dat.groupby('subj')[y].transform('mean')
     dat['cousineau_normalized'] = dat[y] - dat['subject_mean']
@@ -180,14 +180,15 @@ def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=Tr
     ax.tick_params(axis='both', labelsize=fontsize)
 
     # Create legend handles using the hue levels and the corresponding palette colors
-    legend_handles = [Patch(facecolor=palette1[i], label=hue_level) for i, hue_level in enumerate(hue_levels)]
+    if legend:
+        legend_handles = [Patch(facecolor=palette1[i], label=hue_level) for i, hue_level in enumerate(hue_levels)]
 
-    # Add legend to the plot only if there are valid handles
-    if legend_handles:
-        ax.legend(handles=legend_handles, title=hue_label, bbox_to_anchor=(1, 1), title_fontsize=fontsize, fontsize=fontsize-2, loc='best', frameon=True)
+        # Add legend to the plot only if there are valid handles
+        if legend_handles:
+            ax.legend(handles=legend_handles, title=hue_label, bbox_to_anchor=(1, 1), title_fontsize=fontsize, fontsize=fontsize-2, loc='best', frameon=True)
 
 
-def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yticks):
+def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yticks, legend=False):
 
     if x == "a_pred":
         x_label = "auditory"
@@ -198,7 +199,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
     n_cols = len(unique_modalities)
 
     # Create the figure and axes for the subplots
-    fig, axes = plt.subplots(1, n_cols, figsize=(10, 4))
+    fig, axes = plt.subplots(1, n_cols, figsize=(8, 4))
 
     # Prepare a dictionary to store ANOVA and post-hoc results
     anova_results = {}
@@ -215,7 +216,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
 
         # Perform post-hoc t-tests and store the result
         post_hoc = pg.pairwise_tests(
-            dv=y, within=[x, hue], subject=id, data=dat, padjust="fdr_bh"
+            dv=y, within=[x, hue], subject=id, data=dat, padjust="fdr_bh", effsize="cohen"
         )
         posthoc_results[f"{modality} attended"] = post_hoc
 
@@ -243,6 +244,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
             swarmplot_plot,
             within_lines,
             ax=ax,
+            legend=False
         )
 
         # Customize each subplot
@@ -252,6 +254,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
         ax.set_xticklabels(["UEX", "EXP"])
         ax.set_title(f"{modality} attended")
         ax.set_ylim(ylim)
+        ax.set_xlim(-0.5, 1.5) 
         ax.set_yticks(yticks)
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.spines["right"].set_visible(False)
@@ -372,7 +375,7 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig
 
     
 
-    fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharey=True)  # Two subplots
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5), sharey=True)  # Two subplots
     if modality_pred == "v_pred":
         palette1 = ["firebrick", "turquoise"]
         palette2 = ["lightcoral", "powderblue"]
