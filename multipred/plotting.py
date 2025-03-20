@@ -422,7 +422,7 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig
 
 
 
-def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["mediumorchid", "forestgreen"], dodge_width=0.05, hline = 0.5, ax=None):
+def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["mediumorchid", "forestgreen"], dodge_width=0.05, hline = 0.5, linestyle="-", linealpha = 1, ax=None):
     """
     Plots data with means and Cousineau-Morey corrected standard errors.
 
@@ -470,7 +470,9 @@ def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["
         dodge=True,
         join=True,
         errorbar=None,
-        palette=palette
+        palette=palette,
+        linestyles=linestyle,
+        alpha=linealpha
     )
 
     # Optional swarmplot
