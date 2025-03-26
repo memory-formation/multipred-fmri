@@ -21,6 +21,7 @@ def get_main_inds(df, modality, decoded_stim = "presented"):
             target_pred_col = "a_pred"
             alternative_stim_col = "v_trailing"
             alternative_pred_col = "v_pred"
+            
     elif decoded_stim == "predicted":
         if modality == "visual":
             target_stims = ["45", "135"] 

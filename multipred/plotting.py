@@ -87,7 +87,7 @@ def barplot_morey_maineffect(dat, x, y, palette1, palette2, barplot_plot=True, s
     ax.tick_params(axis='both', labelsize=fontsize)
 
 
-def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12, legend=True):
+def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=True, swarmplot_plot=True, within_lines=True, ax=None, fontsize=12, legend=True, errorbar_style={"capsize": 4, "elinewidth": 2, "markersize": 4}):
     # Step 1: Normalize within subjects by subtracting the subject-specific mean
     dat['subject_mean'] = dat.groupby('subj')[y].transform('mean')
     dat['cousineau_normalized'] = dat[y] - dat['subject_mean']
@@ -168,9 +168,9 @@ def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=Tr
             yerr=row['corrected_se'],
             fmt='o',
             color= color_error,
-            capsize=4,
-            elinewidth=2,
-            markersize=4,
+            capsize=errorbar_style["capsize"],
+            elinewidth=errorbar_style["elinewidth"],
+            markersize=errorbar_style["markersize"],
             zorder=10
         )
 
