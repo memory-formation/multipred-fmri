@@ -18,6 +18,15 @@ source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 pip install -e . # This command will install requirements listed in the pyproject.toml
 ```
 
+3. Create a .env file in the root directory to specify the local project path:
+
+```bash
+echo PROJECT_PATH="path/to/your/project/multipred-fmri" > .env
+```
+Replace path/to/your/project/multipred-fmri with the absolute path on your machine.
+This file is used by the project scripts via the python-dotenv library to locate resources.
+
+
 ## Dataset
 The dataset is hosted on OpenNeuro and **must be downloaded separately**. To ensure proper integration:
 1. Download the dataset from OpenNeuro:
