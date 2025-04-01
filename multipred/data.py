@@ -3,6 +3,8 @@ import os
 import nibabel as nib
 import numpy as np
 import pandas as pd
+from nilearn import datasets
+from nilearn.image import load_img
 from scipy.stats import norm
 
 
@@ -254,3 +256,28 @@ def voxel_selection_simple(input_img, ROI_mask, out_img):
     nib.save(out_mask_img, out_img)
 
     return 
+
+def identify_regions(mni_coord):
+    """"
+    "This function takes in a MNI coordinate (tuple) and identifies the corresponding region in the Harvard-Oxford atlas.
+    It uses the nibabel library to load the atlas and extract the region label at the specified coordinate.
+    """
+
+    # Load the Harvard-Oxford cortical and subcortical atlas
+    atlas = datasets.fetch_atlas_harvard_oxford('cort-maxprob-thr25-2mm')  # 25% threshold
+    atlas_img = load_img(atlas.maps)
+    labels = atlas.labels
+
+    # Convert MNI to voxel index
+    affine = atlas_img.affine
+    voxel_coord = nib.affines.apply_affine(np.linalg.inv(affine), mni_coord).astype(int)
+
+    # Load data and extract label at the voxel
+    atlas_data = atlas_img.get_fdata()
+    region_index = int(atlas_data[tuple(voxel_coord)])
+
+    # Print label
+    if region_index > 0:
+        print(f"The MNI coordinate {mni_coord} corresponds to: {labels[region_index]}")
+    else:
+        print(f"The MNI coordinate {mni_coord} does not correspond to a labeled region in the atlas.")
