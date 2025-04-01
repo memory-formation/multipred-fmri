@@ -188,7 +188,7 @@ def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=Tr
             ax.legend(handles=legend_handles, title=hue_label, bbox_to_anchor=(1, 1), title_fontsize=fontsize, fontsize=fontsize-2, loc='best', frameon=True)
 
 
-def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yticks, legend=False):
+def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim, yticks, legend=False):
 
     if x == "a_pred":
         x_label = "auditory"
@@ -264,7 +264,7 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, save_fig, ylim, yti
     plt.tight_layout()
 
     if save_fig:
-        plt.savefig(f"figures/MVPA/{ROI}_acc_interaction.svg", dpi=300, bbox_inches="tight")
+        plt.savefig(f"figures/MVPA/{ROI}_{n_voxels}_acc_interaction.svg", dpi=300, bbox_inches="tight")
 
     plt.show()
 
@@ -407,14 +407,17 @@ def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig
     for i in range(2):
         ax[i].set_ylim(0.45, 0.7)
         ax[i].axhline(y=0.5, color="grey", linestyle="--")
-        ax[i].set_xlabel("Number of Voxels")
+        ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
         ax[i].set_xticklabels(n_voxels_list, rotation=45)
-        ax[i].set_ylabel("Classification Accuracy in EVC")
+        ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
+        sns.despine(ax=ax[i])
+
 
     # Set titles
     ax[0].set_title("Visual attended")
     ax[1].set_title("Auditory attended")
+
 
     plt.tight_layout()
     if save_fig:
