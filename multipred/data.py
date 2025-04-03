@@ -86,6 +86,42 @@ def create_timefiles(subj_df, regressors, onset_var, duration, path):
     return
 
 
+def create_single_trial_timefiles(subj_df, regressors, onset_var, duration, trial, path):
+    """
+    Creates a timefile for a single trial for least squares separate approach, and saves it in the specified path.
+    """
+    
+    # Check if path exists, if not create it
+    if not os.path.exists(path): os.makedirs(path)
+
+    # First, create a timefile for the specified trial 
+    trial_onset = subj_df[subj_df['ntrial'] == trial][onset_var].values[0]; trial_onset = np.round(trial_onset, 2)
+    trial_df = pd.DataFrame({"onset": [trial_onset], "dur" : [duration], 'ones': [1]})
+    np.savetxt(os.path.join(path, "trial.txt") , trial_df.values, fmt='%1.2f')
+    # and remove it from the dataframe
+    subj_df = subj_df[subj_df['ntrial'] != trial]
+    
+
+    # Group dataframe by specified regressors
+    grouped_data = subj_df.groupby(regressors)
+
+    # Dictionary to store the results
+    grouped_onsets = {}
+
+    for name, group in grouped_data:
+        grouped_onsets[name] = group[onset_var].unique().tolist()
+
+    for key in list(grouped_onsets.keys()):
+        onsets = np.round(grouped_onsets[key], 2)
+        durations = np.repeat(duration, len(onsets))
+        ones = np.ones(len(onsets))
+        filename = '_'.join(map(str, key)); filename = filename + '.txt'
+        to_txt = pd.DataFrame({"onset": onsets, "dur" : durations, 'ones': ones})
+        np.savetxt(os.path.join(path, filename) , to_txt.values, fmt='%1.2f')
+
+    return
+
+
 
 
 def create_bids_event_files(subj_df, regressors, onset_var, duration, task, run, path):
