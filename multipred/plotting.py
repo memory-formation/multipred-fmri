@@ -275,10 +275,10 @@ def analyze_attention_ROI(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig,
     return anova_df, posthoc_df
 
 
-def plot_errobars(df, cond, y, palette, x_offset, ax=None):
+def plot_errobars(df, cond, y, palette, x_offset, ax=None, error_type='sem'):
     """
     Plots classification accuracy with error bars.
-    
+
     Parameters:
     - df: DataFrame containing the data.
     - cond: Column representing the condition (e.g., "v_pred").
@@ -286,8 +286,14 @@ def plot_errobars(df, cond, y, palette, x_offset, ax=None):
     - palette: List of two colors for conditions.
     - x_offset: Offset for x-axis spacing.
     - ax: Optional matplotlib axis for subplots. If None, a new figure is created.
+    - error_type: 'ci95' for 95% confidence interval, 'sem' for standard error of the mean.
     """
-    
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     # If ax is not provided, create a new figure
     standalone_plot = ax is None
     if standalone_plot:
@@ -295,136 +301,304 @@ def plot_errobars(df, cond, y, palette, x_offset, ax=None):
 
     df_visual_grouped = df.groupby(["subj", "n_voxels", cond])[y].mean().reset_index()
 
-    # Define a function to compute the mean and 95% CI for each group
-    def mean_ci_95(x):
+    # Function to compute mean and error bars
+    def compute_summary(x):
         n = len(x)
         mean = np.mean(x)
-        std_err = stats.sem(x)  # Standard error of the mean
-        h = std_err * stats.t.ppf((1 + 0.95) / 2., n - 1)  # 95% CI margin
+        std_err = stats.sem(x)
+        if error_type == 'ci95':
+            h = std_err * stats.t.ppf((1 + 0.95) / 2., n - 1)
+        elif error_type == 'sem':
+            h = std_err
+        else:
+            raise ValueError("Invalid error_type. Use 'ci95' or 'sem'.")
         return pd.Series({'mean': mean, 'ci_lower': mean - h, 'ci_upper': mean + h})
 
-    # Compute mean and CI for each group
-    results = df_visual_grouped.groupby(['n_voxels', cond])[y].apply(mean_ci_95).reset_index()
+    # Compute mean and error margins
+    results = df_visual_grouped.groupby(['n_voxels', cond])[y].apply(compute_summary).reset_index()
     pivoted = results.pivot(index=['n_voxels', cond], columns='level_2', values=y).reset_index()
-    pivoted['ci_diff'] = pivoted['ci_upper'] - pivoted['ci_lower']
+    pivoted['ci_diff'] = pivoted['ci_upper'] - pivoted['mean']  # Half-width for errorbar
 
     # Adjust x-axis positions to avoid overlap
     a = 2 + x_offset
     pivoted['n_voxels'] = np.where(pivoted[cond] == 0, pivoted['n_voxels'] - a, pivoted['n_voxels'])
     pivoted['n_voxels'] = np.where(pivoted[cond] == 1, pivoted['n_voxels'] + a, pivoted['n_voxels'])
 
-    # Use seaborn for lineplot, setting ax if provided
-    sns.lineplot(x='n_voxels', y='mean', hue=cond, data=pivoted, legend=False, palette=palette, ax=ax)
+    # Plot line and error bars
+    sns.lineplot(x='n_voxels', y='mean', hue=cond, data=pivoted,
+                 legend=False, palette=palette, ax=ax)
 
-    # Plot error bars
-    ax.errorbar(
-        x=pivoted[pivoted[cond] == 0]['n_voxels'], 
-        y=pivoted[pivoted[cond] == 0]['mean'], 
-        yerr=pivoted[pivoted[cond] == 0]['ci_diff'], 
-        fmt='o', color=palette[0], capsize=10
-    )
+    for val in [0, 1]:
+        sub = pivoted[pivoted[cond] == val]
+        ax.errorbar(
+            x=sub['n_voxels'],
+            y=sub['mean'],
+            yerr=sub['ci_diff'],
+            fmt='o', color=palette[val], capsize=7
+        )
 
-    ax.errorbar(
-        x=pivoted[pivoted[cond] == 1]['n_voxels'], 
-        y=pivoted[pivoted[cond] == 1]['mean'], 
-        yerr=pivoted[pivoted[cond] == 1]['ci_diff'], 
-        fmt='o', color=palette[1], capsize=10
-    )
-
-    # If this was a standalone plot, show it
     if standalone_plot:
         ax.set_xlabel("Number of Voxels")
         ax.set_ylabel("Classification Accuracy in EVC")
         plt.show()
 
-    return ax  # Return the axis (useful for subplots)
+    return ax
 
-def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig=False):
-    # concatenate all the dataframes for the different ROIs
-    n_voxels_int = [int(n) for n in n_voxels_list[:-2]]; n_voxels_int.extend([n_voxels_int[-1] + 50, n_voxels_int[-1] + 100]) # Convert to int for xticks
+def plot_errobars_flex(
+    df, x, y, hue, palette=None, x_offset=1, ax=None, error_type='sem'
+):
+    """
+    Flexible function to plot classification accuracy (or any metric) with error bars.
+
+    Parameters:
+    - df: DataFrame with data.
+    - x: x-axis variable (e.g., "n_voxels").
+    - y: dependent variable (e.g., "correct").
+    - hue: grouping variable (e.g., "v_pred").
+    - palette: list or dict of colors for each hue level.
+    - x_offset: spacing offset to prevent marker overlap.
+    - ax: matplotlib axis. If None, a standalone plot is created.
+    - error_type: 'ci95' (default) or 'sem' for standard error bars.
+    """
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    standalone = ax is None
+    if standalone:
+        fig, ax = plt.subplots(figsize=(6, 4))
+
+    # Step 1: average within subject, x, and hue
+    df_grouped = df.groupby(["subj", x, hue])[y].mean().reset_index()
+
+    # Step 2: compute summary stats
+    summary_stats = df_grouped.groupby([x, hue])[y].agg(['mean', 'count', 'std']).reset_index()
+
+    if error_type == "sem":
+        summary_stats["yerr"] = summary_stats["std"] / np.sqrt(summary_stats["count"])
+    elif error_type == "ci95":
+        summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * \
+            stats.t.ppf(0.975, df=summary_stats["count"] - 1)
+    else:
+        raise ValueError("error_type must be 'sem' or 'ci95'")
+
+    # Step 3: offset for x-axis position
+    hue_vals = sorted(df[hue].unique())
+    offset_map = {h: (-1)**i * x_offset for i, h in enumerate(hue_vals)}
+    summary_stats["x_plot"] = summary_stats[x] + summary_stats[hue].map(offset_map)
+
+    # Step 4: set colors
+    if isinstance(palette, dict):
+        color_map = palette
+    elif isinstance(palette, list):
+        color_map = dict(zip(hue_vals, palette))
+    else:
+        color_map = dict(zip(hue_vals, sns.color_palette("deep", len(hue_vals))))
+
+    # Step 5: plot
+    for h in hue_vals:
+        data_h = summary_stats[summary_stats[hue] == h]
+        ax.plot(data_h["x_plot"], data_h["mean"], label=str(h), color=color_map[h])
+        ax.errorbar(
+            data_h["x_plot"], data_h["mean"], yerr=data_h["yerr"],
+            fmt="o", color=color_map[h], capsize=8
+        )
+
+    ax.axhline(0.5, color="gray", linestyle="--", linewidth=1)
+    ax.set_xlabel(x.replace("_", " ").title())
+    ax.set_ylabel(y.replace("_", " ").title())
+    ax.legend(title=hue)
+    sns.despine(ax=ax)
+
+    if standalone:
+        plt.tight_layout()
+        plt.show()
+
+    return ax
+
+
+# def plot_decoding_nvoxels(data_path, n_voxels_list, ROI, modality_pred, save_fig=False):
+#     # concatenate all the dataframes for the different ROIs
+#     n_voxels_int = [int(n) for n in n_voxels_list[:-2]]; n_voxels_int.extend([n_voxels_int[-1] + 50, n_voxels_int[-1] + 100]) # Convert to int for xticks
+#     for i, n_voxels in zip(n_voxels_int, n_voxels_list):
+#         # Load the data
+#         ROI_df = pd.read_csv(f"{data_path}{ROI}_{n_voxels}/balanced_group_data.csv")
+
+#         ROI_df["n_voxels"] = i
+#         ROI_df["n_voxels_labels"] = n_voxels
+
+#         ROI_df = ROI_df.groupby(["subj", "modality", modality_pred, "n_voxels"], as_index=False)[
+#             "correct"
+#         ].mean()
+
+#         n_subj = ROI_df["subj"].nunique()
+
+#         # test if decoding accuracy is above chance level
+#         t_visual, p_visual = stats.ttest_1samp(
+#             ROI_df[ROI_df["modality"] == "visual"]["correct"], 0.5
+#         )
+#         t_auditory, p_auditory = stats.ttest_1samp(
+#             ROI_df[ROI_df["modality"] == "auditory"]["correct"], 0.5
+#         )
+
+#         print(
+#             f"{n_subj} subjects in {n_voxels} voxels mask. Visual modality: t({n_subj-1})={t_visual:.4f}, p={p_visual:.4f}. Auditory modality: t({n_subj-1})={t_auditory:.4f}, p={p_auditory:.4f}"
+#         )
+
+#         # concatenate the dataframes
+#         if n_voxels == n_voxels_list[0]:
+#             df_allROIs = ROI_df
+#         else:
+#             df_allROIs = pd.concat([df_allROIs, ROI_df])
+
+    
+
+#     fig, ax = plt.subplots(figsize=(10, 5))  # Two subplots
+#     if modality_pred == "v_pred":
+#         palette1 = ["firebrick", "turquoise"]
+#         palette2 = ["lightcoral", "powderblue"]
+#     else:
+#         palette1 = ["lightcoral", "powderblue"]
+#         palette2 = ["firebrick", "turquoise"]
+
+#     # Left subplot (Visual)
+#     # plot_errobars(
+#     #     df_allROIs[df_allROIs["modality"] == "visual"],
+#     #     modality_pred,
+#     #     "correct",
+#     #     palette1,
+#     #     x_offset=1,
+#     #     ax=ax[0],
+#     # )
+#     plot_errobars_flex(
+#         df_allROIs,
+#         "n_voxels",
+#         "correct",
+#         "modality",
+#         palette1,
+#         x_offset=1,
+#         ax=ax,
+#     )
+
+#     # Right subplot (Auditory)
+#     # plot_errobars(
+#     #     df_allROIs[df_allROIs["modality"] == "auditory"],
+#     #     modality_pred,
+#     #     "correct",
+#     #     palette2,
+#     #     x_offset=1,
+#     #     ax=ax[1],
+#     # )
+
+
+
+#     # Format both subplots
+#     for i in range(2):
+#         ax[i].set_ylim(0.45, 0.7)
+#         ax[i].axhline(y=0.5, color="grey", linestyle="--")
+#         ax[i].set_xlabel("Number of Voxels", fontsize=16)
+#         ax[i].set_xticks(n_voxels_int)
+#         ax[i].set_xticklabels(n_voxels_list, rotation=45)
+#         ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
+#         sns.despine(ax=ax[i])
+
+
+#     # Set titles
+#     ax[0].set_title("Visual attended")
+#     ax[1].set_title("Auditory attended")
+
+
+#     plt.tight_layout()
+#     if save_fig:
+#         plt.savefig(f"figures/MVPA/{ROI}_decoding_nvoxels.svg", dpi=300, bbox_inches="tight")
+#     plt.show()
+
+#     return df_allROIs
+
+def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditoryROI="A1", error_type="sem", save_fig=False):
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from scipy import stats
+
+    # Convert to integers for plotting
+    n_voxels_int = [int(n) for n in n_voxels_list[:-2]]
+    n_voxels_int.extend([n_voxels_int[-1] + 50, n_voxels_int[-1] + 100])
+
+    summary_rows = []  # Collect stats here
+
     for i, n_voxels in zip(n_voxels_int, n_voxels_list):
-        # Load the data
-        ROI_df = pd.read_csv(f"{data_path}{ROI}_{n_voxels}/balanced_group_data.csv")
+        # Load and label data
+        visual_df = pd.read_csv(f"{data_path}{visualROI}_{n_voxels}/balanced_group_data.csv")
+        visual_df["ROI"] = visualROI
+        auditory_df = pd.read_csv(f"{data_path}{auditoryROI}_{n_voxels}/balanced_group_data.csv")
+        auditory_df["ROI"] = auditoryROI
 
+        ROI_df = pd.concat([visual_df, auditory_df], ignore_index=True)
         ROI_df["n_voxels"] = i
-        ROI_df["n_voxels_labels"] = n_voxels
+        ROI_df["n_voxels_label"] = n_voxels
 
-        ROI_df = ROI_df.groupby(["subj", "modality", modality_pred, "n_voxels"], as_index=False)[
-            "correct"
-        ].mean()
-
+        ROI_df = ROI_df.groupby(["subj", "ROI", "n_voxels"], as_index=False)["correct"].mean()
         n_subj = ROI_df["subj"].nunique()
 
-        # test if decoding accuracy is above chance level
-        t_visual, p_visual = stats.ttest_1samp(
-            ROI_df[ROI_df["modality"] == "visual"]["correct"], 0.5
-        )
-        t_auditory, p_auditory = stats.ttest_1samp(
-            ROI_df[ROI_df["modality"] == "auditory"]["correct"], 0.5
-        )
+        #for modality, roi in [("visual", visualROI), ("auditory", auditoryROI)]:
+        for roi in [visualROI, auditoryROI]:
+            data_mod = ROI_df[ROI_df["ROI"] == roi]["correct"]
+            acc = data_mod.mean()
+            t_val, p_val = stats.ttest_1samp(data_mod, 0.5)
 
-        print(
-            f"{n_subj} subjects in {n_voxels} voxels mask. Visual modality: t({n_subj-1})={t_visual:.4f}, p={p_visual:.4f}. Auditory modality: t({n_subj-1})={t_auditory:.4f}, p={p_auditory:.4f}"
-        )
+            summary_rows.append({
+                "n_voxels_label": i,
+                "ROI": roi,
+                "n_subjects": n_subj,
+                "accuracy": acc,
+                "t_value": t_val,
+                "p_value": p_val
+            })
 
-        # concatenate the dataframes
+        # Combine across voxel sizes
         if n_voxels == n_voxels_list[0]:
             df_allROIs = ROI_df
         else:
             df_allROIs = pd.concat([df_allROIs, ROI_df])
 
-    
+    # Convert summary to DataFrame
+    df_summary = pd.DataFrame(summary_rows)
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5), sharey=True)  # Two subplots
-    if modality_pred == "v_pred":
-        palette1 = ["firebrick", "turquoise"]
-        palette2 = ["lightcoral", "powderblue"]
-    else:
-        palette1 = ["lightcoral", "powderblue"]
-        palette2 = ["firebrick", "turquoise"]
+    # Plotting
+    fig, ax = plt.subplots(figsize=(7, 5))
+    palette1 = ["slateblue", "goldenrod"]
 
-    # Left subplot (Visual)
-    plot_errobars(
-        df_allROIs[df_allROIs["modality"] == "visual"],
-        modality_pred,
+    plot_errobars_flex(
+        df_allROIs,
+        "n_voxels",
         "correct",
-        palette1,
+        "ROI",
+        palette=palette1,
         x_offset=1,
-        ax=ax[0],
+        ax=ax,
+        error_type=error_type
     )
 
-    # Right subplot (Auditory)
-    plot_errobars(
-        df_allROIs[df_allROIs["modality"] == "auditory"],
-        modality_pred,
-        "correct",
-        palette2,
-        x_offset=1,
-        ax=ax[1],
-    )
-
-    # Format both subplots
-    for i in range(2):
-        ax[i].set_ylim(0.45, 0.7)
-        ax[i].axhline(y=0.5, color="grey", linestyle="--")
-        ax[i].set_xlabel("Number of Voxels", fontsize=16)
-        ax[i].set_xticks(n_voxels_int)
-        ax[i].set_xticklabels(n_voxels_list, rotation=45)
-        ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
-        sns.despine(ax=ax[i])
-
-
-    # Set titles
-    ax[0].set_title("Visual attended")
-    ax[1].set_title("Auditory attended")
-
+    # Formatting
+    ax.set_ylim(0.45, 0.7)
+    ax.axhline(y=0.5, color="grey", linestyle="--")
+    ax.set_xlabel("Number of Voxels", fontsize=16)
+    ax.set_xticks(n_voxels_int)
+    ax.set_xticklabels(n_voxels_list, rotation=45)
+    ax.set_ylabel("Classification Accuracy", fontsize=16)
+    sns.despine(ax=ax)
 
     plt.tight_layout()
     if save_fig:
-        plt.savefig(f"figures/MVPA/{ROI}_decoding_nvoxels.svg", dpi=300, bbox_inches="tight")
+        plt.savefig(f"figures/MVPA/decoding_modalities.svg", dpi=300, bbox_inches="tight")
     plt.show()
 
-    return df_allROIs
+    return df_allROIs, df_summary
+
 
 
 
