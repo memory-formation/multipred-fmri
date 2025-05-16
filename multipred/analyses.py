@@ -1,41 +1,35 @@
+import numpy as np
 import pandas as pd
 import pingouin as pg
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
 
-def test_decoding_above_chance(df, n_voxels_list, ROIs = ["EVC", "A1"], dv="correct",
+def get_sig_stars(p):
+    if p < 0.001:
+        return '***'
+    elif p < 0.01:
+        return '**'
+    elif p < 0.05:
+        return '*'
+    else:
+        return ''
+    
+
+def test_decoding_above_chance(df, n_voxels_list=None, ROIs=["EVC", "A1"], dv="correct",
                                 chance_level=0.5, ci=0.95):
     """
-    Perform one-sample t-tests against chance level for each ROI × n_voxels × attended modality group.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing subject-level decoding accuracy and grouping variables.
-    dv : str
-        Dependent variable column name (default: "correct").
-    group_cols : tuple
-        Columns to group by for testing (default: ("ROI", "n_voxels_label")).
-    chance_level : float
-        Chance level for t-test (default: 0.5).
-    ci : float
-        Confidence level for intervals (default: 0.95).
-
-    Returns
-    -------
-    summary_df : pd.DataFrame
-        Table of t-tests with mean accuracy, t, p, CI, and significance.
+    One-sample t-tests against chance level for each ROI × ROI size.
     """
     summary = []
 
     for roi in ROIs:
         for n_voxels in n_voxels_list:
             dat = df[(df["ROI"] == roi) & (df["n_voxels_label"] == n_voxels)]
-            n_subj = len(dat["subj"].unique())
+            n_subj = dat["subj"].nunique()
             subj_means = dat.groupby("subj")[dv].mean()
             acc_values = subj_means
-            acc = acc_values.mean()
+
             t_val, p_val = stats.ttest_1samp(acc_values, chance_level)
             mean_acc = acc_values.mean()
             se = stats.sem(acc_values)
@@ -44,19 +38,64 @@ def test_decoding_above_chance(df, n_voxels_list, ROIs = ["EVC", "A1"], dv="corr
             ci_lower, ci_upper = mean_acc - h, mean_acc + h
 
             summary.append({
-                "n_voxels_label": n_voxels,
                 "ROI": roi,
-                "n_subjects": n_subj,
-                "accuracy": acc,
-                "t_value": t_val,
-                "p_value": p_val,
-                "ci_lower": ci_lower,
-                "ci_upper": ci_upper
+                "ROI size": n_voxels,
+                "n": n_subj,
+                "Mean Accuracy": round(mean_acc, 3),
+                "t": round(t_val, 2),
+                "p": round(p_val, 3),
+                "CI Lower": round(ci_lower, 3),
+                "CI Upper": round(ci_upper, 3),
+                "significance": get_sig_stars(p_val)
             })
 
-    summary_df = pd.DataFrame(summary)
+    return pd.DataFrame(summary)
 
-    return summary_df
+
+def decoding_attended_modalities_stats(df, n_voxels_list=None, ROIs=["EVC", "A1"], dv="correct",
+    subject_col="subj", cond_col="attended modality", conditions=("visual", "auditory"), ci=0.95):
+    """
+    Paired t-tests comparing decoding between attended modalities for each ROI × ROI size.
+    """
+    if n_voxels_list is None:
+        n_voxels_list = df["n_voxels_label"].unique()
+
+    results = []
+
+    for roi in ROIs:
+        for n_vox in n_voxels_list:
+            subset = df[(df["ROI"] == roi) & (df["n_voxels_label"] == n_vox)]
+
+            pivoted = subset.pivot(index=subject_col, columns=cond_col, values=dv)
+            pivoted = pivoted.dropna(subset=conditions)
+
+            if pivoted.shape[0] < 2:
+                continue
+
+            diff = pivoted[conditions[0]] - pivoted[conditions[1]]
+            t_val, p_val = stats.ttest_rel(pivoted[conditions[0]], pivoted[conditions[1]])
+
+            mean_diff = diff.mean()
+            se = stats.sem(diff)
+            df_ = len(diff) - 1
+            h = stats.t.ppf((1 + ci) / 2., df_) * se
+            ci_lower, ci_upper = mean_diff - h, mean_diff + h
+            d = mean_diff / diff.std(ddof=1)
+
+            results.append({
+                "ROI": roi,
+                "ROI size": n_vox,
+                "n": len(diff),
+                "Mean Difference": round(mean_diff, 3),
+                "t": round(t_val, 2),
+                "p": round(p_val, 3),
+                "d": round(d, 2),
+                "CI Lower": round(ci_lower, 3),
+                "CI Upper": round(ci_upper, 3),
+                "significance": get_sig_stars(p_val)
+            })
+    return pd.DataFrame(results)
+
 
 
 def decoding_crossmodal_stats(
@@ -69,39 +108,13 @@ def decoding_crossmodal_stats(
     alternative="two-sided",
 ):
     """
-    Perform rmANOVA per ROI and FDR-corrected pairwise v_pred tests within each ROI across a_pred levels.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Data with decoding accuracy and predictors.
-    dv : str
-        Dependent variable column (e.g., "correct").
-    subject : str
-        Subject ID column.
-    within_factors : tuple of str
-        ('a_pred', 'v_pred') assumed.
-    voxel_label_col : str
-        ROI label column (e.g., "n_voxels_label").
-    p_adjust_method : str
-        Correction method for multiple comparisons within each ROI (default: 'fdr_bh').
-    alternative : str
-        Hypothesis type for pairwise tests ('less', 'two-sided', etc.).
-
-    Returns
-    -------
-    anova_df : pd.DataFrame
-        rmANOVA results per ROI (MultiIndex: ROI x Source).
-    ttest_df : pd.DataFrame
-        Pairwise v_pred tests (MultiIndex: ROI x a_pred x Contrast) with FDR per ROI.
+    rmANOVA per ROI size and FDR-corrected pairwise v_pred tests across a_pred levels.
     """
-
     factor1, factor2 = within_factors
     anova_results = []
     all_ttests = []
 
     for roi_label, df_roi in df.groupby(voxel_label_col):
-        # 1. rmANOVA for the current ROI
         aov = pg.rm_anova(
             dv=dv,
             within=[factor1, factor2],
@@ -112,7 +125,6 @@ def decoding_crossmodal_stats(
         aov[voxel_label_col] = roi_label
         anova_results.append(aov)
 
-        # 2. Run pairwise tests for each level of a_pred
         roi_tests = []
         for a_val in df_roi[factor1].unique():
             subset = df_roi[df_roi[factor1] == a_val]
@@ -129,21 +141,34 @@ def decoding_crossmodal_stats(
             res[voxel_label_col] = roi_label
             roi_tests.append(res)
 
-        # Concatenate and apply FDR *within this ROI*
         roi_tests_df = pd.concat(roi_tests, ignore_index=True)
         reject, pvals_corr, _, _ = multipletests(
             roi_tests_df["p-unc"].values, alpha=0.05, method=p_adjust_method
         )
-        roi_tests_df["p-corr"] = pvals_corr
-        roi_tests_df["significant"] = reject
+        roi_tests_df["p-corr"] = np.round(pvals_corr, 3)
+        roi_tests_df["significance"] = [get_sig_stars(p) for p in pvals_corr]
+
         all_ttests.append(roi_tests_df)
 
-    # Final combined results
     anova_df = pd.concat(anova_results, ignore_index=True)
-    ttest_df = pd.concat(all_ttests, ignore_index=True)
+    anova_df = anova_df.rename(columns={
+        "Source": "Effect", "DF": "df", "SS": "SS", "MS": "MS",
+        "F": "F", "p-GG-corr": "p", "np2": "η²ₚ", voxel_label_col: "n_voxels_label"
+    })
+    anova_df = anova_df.round({"SS": 3, "MS": 3, "F": 2, "p": 3, "η²ₚ": 3})
+    anova_df["significance"] = [get_sig_stars(p) for p in anova_df["p"]]
 
-    # Set MultiIndex
-    anova_df.set_index([voxel_label_col, "Source"], inplace=True)
-    ttest_df.set_index([voxel_label_col, factor1, "Contrast"], inplace=True)
+    ttest_df = pd.concat(all_ttests, ignore_index=True)
+    ttest_df = ttest_df.rename(columns={
+        voxel_label_col: "n_voxels_label",
+        factor1: "a_pred",
+        "Contrast": "comparison",
+        "T": "t",
+        "dof": "df",
+        "p-unc": "p_uncorrected",
+        "p-corr": "p_corrected",
+        "cohen-d": "d"
+    })
+    ttest_df = ttest_df.round({"t": 2, "df": 0, "p_uncorrected": 3, "p_corrected": 3, "d": 2})
 
     return anova_df, ttest_df
