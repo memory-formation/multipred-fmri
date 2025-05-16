@@ -490,7 +490,7 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
 
     return df_allROIs
 
-def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attended_modality=None, error_type="sw", save_fig=False):
+def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attended_modality=None, error_type="ws", save_fig=False):
     """
     Plot decoding accuracy across ROI sizes.
     Parameters
