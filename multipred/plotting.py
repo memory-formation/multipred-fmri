@@ -257,6 +257,96 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
 
 
 
+# def plot_errobars(
+#     df, x, y, hue, palette=None, x_offset=1, ax=None, error_type='sem'
+# ):
+#     """
+#     Flexible function to plot classification accuracy (or any metric) with error bars.
+
+#     Parameters:
+#     - df: DataFrame with data.
+#     - x: x-axis variable (e.g., "n_voxels").
+#     - y: dependent variable (e.g., "correct").
+#     - hue: grouping variable (e.g., "v_pred").
+#     - palette: list or dict of colors for each hue level.
+#     - x_offset: spacing offset to prevent marker overlap.
+#     - ax: matplotlib axis. If None, a standalone plot is created.
+#     - error_type: 'ci95' (default) or 'sem' for standard error bars.
+#     """
+#     import numpy as np
+#     import pandas as pd
+#     from scipy import stats
+#     import matplotlib.pyplot as plt
+#     import seaborn as sns
+
+#     standalone = ax is None
+#     if standalone:
+#         fig, ax = plt.subplots(figsize=(6, 4))
+
+#     # Step 1: Average within subj, x(n_voxels), hue
+#     df_grouped = df.groupby(["subj", x, hue])[y].mean().reset_index()
+
+#     if error_type == "ws":  # Within-subject SEM (Cousineau-Morey)
+#         # Step 2a: Normalize within subject
+#         subj_means = df_grouped.groupby("subj")[y].transform("mean")
+#         grand_mean = df_grouped[y].mean()
+#         df_grouped["y_norm"] = df_grouped[y] - subj_means + grand_mean
+
+#         # Step 2b: Compute summary on normalized data
+#         summary_stats = df_grouped.groupby([x, hue])["y_norm"].agg(["mean", "std", "count"]).reset_index()
+
+#         # Step 2c: Morey correction
+#         n_conditions = df_grouped[x].nunique()
+#         correction = np.sqrt(n_conditions / (n_conditions - 1))
+#         summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * correction
+
+#         summary_stats["x_plot"] = summary_stats[x]
+#     else:
+#         # Standard SEM or CI95
+#         summary_stats = df_grouped.groupby([x, hue])[y].agg(['mean', 'count', 'std']).reset_index()
+#         if error_type == "sem":
+#             summary_stats["yerr"] = summary_stats["std"] / np.sqrt(summary_stats["count"])
+#         elif error_type == "ci95":
+#             summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * \
+#                 stats.t.ppf(0.975, df=summary_stats["count"] - 1)
+#         else:
+#             raise ValueError("error_type must be 'sem', 'ci95', or 'ws'")
+#         summary_stats["x_plot"] = summary_stats[x]
+
+#     # Offset for clarity
+#     hue_vals = sorted(df[hue].unique())
+#     offset_map = {h: (-1)**i * x_offset for i, h in enumerate(hue_vals)}
+#     summary_stats["x_plot"] = summary_stats[x] + summary_stats[hue].map(offset_map)
+
+#     # Step 4: set colors
+#     if isinstance(palette, dict):
+#         color_map = palette
+#     elif isinstance(palette, list):
+#         color_map = dict(zip(hue_vals, palette))
+#     else:
+#         color_map = dict(zip(hue_vals, sns.color_palette("deep", len(hue_vals))))
+
+#     # Step 5: plot
+#     for h in hue_vals:
+#         data_h = summary_stats[summary_stats[hue] == h]
+#         ax.plot(data_h["x_plot"], data_h["mean"], label=str(h), color=color_map[h])
+#         ax.errorbar(
+#             data_h["x_plot"], data_h["mean"], yerr=data_h["yerr"],
+#             fmt="o", color=color_map[h], capsize=5
+#         )
+
+#     ax.axhline(0.5, color="gray", linestyle="--", linewidth=1)
+#     ax.set_xlabel(x.replace("_", " ").title())
+#     ax.set_ylabel(y.replace("_", " ").title())
+#     ax.legend(title=hue)
+#     sns.despine(ax=ax)
+
+#     if standalone:
+#         plt.tight_layout()
+#         plt.show()
+
+#     return ax
+
 def plot_errobars(
     df, x, y, hue, palette=None, x_offset=1, ax=None, error_type='sem'
 ):
@@ -271,7 +361,9 @@ def plot_errobars(
     - palette: list or dict of colors for each hue level.
     - x_offset: spacing offset to prevent marker overlap.
     - ax: matplotlib axis. If None, a standalone plot is created.
-    - error_type: 'ci95' (default) or 'sem' for standard error bars.
+    - error_type: 'sem', 'ci95', 'wsSE', or 'wsCI'
+      - 'wsSE': within-subject standard error (Cousineau-Morey)
+      - 'wsCI': within-subject 95% confidence interval (Cousineau-Morey with t-correction)
     """
     import numpy as np
     import pandas as pd
@@ -286,7 +378,7 @@ def plot_errobars(
     # Step 1: Average within subj, x(n_voxels), hue
     df_grouped = df.groupby(["subj", x, hue])[y].mean().reset_index()
 
-    if error_type == "ws":  # Within-subject SEM (Cousineau-Morey)
+    if error_type in ["wsSE", "wsCI"]:
         # Step 2a: Normalize within subject
         subj_means = df_grouped.groupby("subj")[y].transform("mean")
         grand_mean = df_grouped[y].mean()
@@ -295,12 +387,20 @@ def plot_errobars(
         # Step 2b: Compute summary on normalized data
         summary_stats = df_grouped.groupby([x, hue])["y_norm"].agg(["mean", "std", "count"]).reset_index()
 
-        # Step 2c: Morey correction
+        # Step 2c: Morey correction factor
         n_conditions = df_grouped[x].nunique()
         correction = np.sqrt(n_conditions / (n_conditions - 1))
-        summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * correction
+        se_corrected = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * correction
+
+        if error_type == "wsSE":
+            summary_stats["yerr"] = se_corrected
+        elif error_type == "wsCI":
+            # Apply t-distribution correction for CI
+            t_critical = stats.t.ppf(0.975, df=summary_stats["count"] - 1)
+            summary_stats["yerr"] = se_corrected * t_critical
 
         summary_stats["x_plot"] = summary_stats[x]
+
     else:
         # Standard SEM or CI95
         summary_stats = df_grouped.groupby([x, hue])[y].agg(['mean', 'count', 'std']).reset_index()
@@ -310,7 +410,7 @@ def plot_errobars(
             summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * \
                 stats.t.ppf(0.975, df=summary_stats["count"] - 1)
         else:
-            raise ValueError("error_type must be 'sem', 'ci95', or 'ws'")
+            raise ValueError("error_type must be 'sem', 'ci95', 'wsSE', or 'wsCI'")
         summary_stats["x_plot"] = summary_stats[x]
 
     # Offset for clarity
@@ -347,12 +447,27 @@ def plot_errobars(
 
     return ax
 
-def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditoryROI="A1", error_type="sem", save_fig=False):
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    from scipy import stats
+
+def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditoryROI="A1", error_type="ci95", save_fig=False):
+    """
+    Plot decoding accuracy across ROI sizes.
+    Parameters
+    ----------
+    data_path : str
+        Path to the data directory.
+    n_voxels_list : list
+        List of voxel sizes to plot.
+    visualROI : str
+        Name of the visual ROI.
+    auditoryROI : str
+        Name of the auditory ROI.  
+    - error_type: 'sem', 'ci95', 'wsSE', or 'wsCI' (default: '    - error_type: 'sem', 'ci95', 'wsSE', or 'wsCI' (default: 'CI', as we want to test decoding above chance level with this)
+', as we want to test decoding above chance level with this)
+      - 'wsSE': within-subject standard error (Cousineau-Morey)
+      - 'wsCI': within-subject 95% confidence interval (Cousineau-Morey with t-correction)
+    save_fig : bool
+        Whether to save the figure.
+    """
 
     # Convert to integers for plotting
     n_voxels_int = [int(n) for n in n_voxels_list[:-2]]
