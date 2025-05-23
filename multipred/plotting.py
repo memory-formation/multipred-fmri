@@ -199,7 +199,7 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
     n_cols = len(unique_modalities)
 
     # Create the figure and axes for the subplots
-    fig, axes = plt.subplots(1, n_cols, figsize=(8, 4))
+    fig, axes = plt.subplots(1, n_cols, figsize=(10, 5))
 
 
     for i, modality in enumerate(unique_modalities):
@@ -238,7 +238,7 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
         ax.set_ylabel(f"Classification accuracy in {ROI}")
         ax.set_xlabel(x_label)
         ax.set_xticks([0, 1])
-        ax.set_xticklabels(["UEX", "EXP"])
+        ax.set_xticklabels(labels =["UEX", "EXP"], fontsize=14)
         ax.set_title(f"{modality} attended")
         ax.set_ylim(ylim)
         ax.set_xlim(-0.5, 1.5) 
@@ -256,96 +256,6 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
     plt.show()
 
 
-
-# def plot_errobars(
-#     df, x, y, hue, palette=None, x_offset=1, ax=None, error_type='sem'
-# ):
-#     """
-#     Flexible function to plot classification accuracy (or any metric) with error bars.
-
-#     Parameters:
-#     - df: DataFrame with data.
-#     - x: x-axis variable (e.g., "n_voxels").
-#     - y: dependent variable (e.g., "correct").
-#     - hue: grouping variable (e.g., "v_pred").
-#     - palette: list or dict of colors for each hue level.
-#     - x_offset: spacing offset to prevent marker overlap.
-#     - ax: matplotlib axis. If None, a standalone plot is created.
-#     - error_type: 'ci95' (default) or 'sem' for standard error bars.
-#     """
-#     import numpy as np
-#     import pandas as pd
-#     from scipy import stats
-#     import matplotlib.pyplot as plt
-#     import seaborn as sns
-
-#     standalone = ax is None
-#     if standalone:
-#         fig, ax = plt.subplots(figsize=(6, 4))
-
-#     # Step 1: Average within subj, x(n_voxels), hue
-#     df_grouped = df.groupby(["subj", x, hue])[y].mean().reset_index()
-
-#     if error_type == "ws":  # Within-subject SEM (Cousineau-Morey)
-#         # Step 2a: Normalize within subject
-#         subj_means = df_grouped.groupby("subj")[y].transform("mean")
-#         grand_mean = df_grouped[y].mean()
-#         df_grouped["y_norm"] = df_grouped[y] - subj_means + grand_mean
-
-#         # Step 2b: Compute summary on normalized data
-#         summary_stats = df_grouped.groupby([x, hue])["y_norm"].agg(["mean", "std", "count"]).reset_index()
-
-#         # Step 2c: Morey correction
-#         n_conditions = df_grouped[x].nunique()
-#         correction = np.sqrt(n_conditions / (n_conditions - 1))
-#         summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * correction
-
-#         summary_stats["x_plot"] = summary_stats[x]
-#     else:
-#         # Standard SEM or CI95
-#         summary_stats = df_grouped.groupby([x, hue])[y].agg(['mean', 'count', 'std']).reset_index()
-#         if error_type == "sem":
-#             summary_stats["yerr"] = summary_stats["std"] / np.sqrt(summary_stats["count"])
-#         elif error_type == "ci95":
-#             summary_stats["yerr"] = (summary_stats["std"] / np.sqrt(summary_stats["count"])) * \
-#                 stats.t.ppf(0.975, df=summary_stats["count"] - 1)
-#         else:
-#             raise ValueError("error_type must be 'sem', 'ci95', or 'ws'")
-#         summary_stats["x_plot"] = summary_stats[x]
-
-#     # Offset for clarity
-#     hue_vals = sorted(df[hue].unique())
-#     offset_map = {h: (-1)**i * x_offset for i, h in enumerate(hue_vals)}
-#     summary_stats["x_plot"] = summary_stats[x] + summary_stats[hue].map(offset_map)
-
-#     # Step 4: set colors
-#     if isinstance(palette, dict):
-#         color_map = palette
-#     elif isinstance(palette, list):
-#         color_map = dict(zip(hue_vals, palette))
-#     else:
-#         color_map = dict(zip(hue_vals, sns.color_palette("deep", len(hue_vals))))
-
-#     # Step 5: plot
-#     for h in hue_vals:
-#         data_h = summary_stats[summary_stats[hue] == h]
-#         ax.plot(data_h["x_plot"], data_h["mean"], label=str(h), color=color_map[h])
-#         ax.errorbar(
-#             data_h["x_plot"], data_h["mean"], yerr=data_h["yerr"],
-#             fmt="o", color=color_map[h], capsize=5
-#         )
-
-#     ax.axhline(0.5, color="gray", linestyle="--", linewidth=1)
-#     ax.set_xlabel(x.replace("_", " ").title())
-#     ax.set_ylabel(y.replace("_", " ").title())
-#     ax.legend(title=hue)
-#     sns.despine(ax=ax)
-
-#     if standalone:
-#         plt.tight_layout()
-#         plt.show()
-
-#     return ax
 
 def plot_errobars(
     df, x, y, hue, palette=None, x_offset=1, ax=None, error_type='sem'
@@ -514,7 +424,7 @@ def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditory
     df_summary = pd.DataFrame(summary_rows)
 
     # Plotting
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
     palette1 = ["slateblue", "goldenrod"]
 
     plot_errobars(
@@ -523,16 +433,18 @@ def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditory
         "correct",
         "ROI",
         palette=palette1,
-        x_offset=1,
+        x_offset=3,
         ax=ax,
         error_type=error_type
     )
 
     # Formatting
-    ax.set_ylim(0.45, 0.7)
+    ax.set_ylim(0.48, 0.64)
     ax.set_xlabel("Number of Voxels", fontsize=16)
     ax.set_xticks(n_voxels_int)
-    ax.set_xticklabels(n_voxels_list, rotation=45)
+    ax.set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
+    ax.set_yticks([0.5, 0.55, 0.6])
+    ax.set_yticklabels(labels=["0.5", "0.55", "0.6"], fontsize=14)
     ax.set_ylabel("Classification Accuracy", fontsize=16)
     sns.despine(ax=ax)
 
@@ -567,7 +479,7 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
 
 
     # Plotting
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
     for i, ROI in enumerate(ROIs.values()):
         # Filter data for each ROI
@@ -591,10 +503,12 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
         )
 
         # Formatting
-        ax[i].set_ylim(0.45, 0.7)
+        ax[i].set_ylim(0.48, 0.64)
         ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
-        ax[i].set_xticklabels(n_voxels_list, rotation=45)
+        ax[i].set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
+        ax[i].set_yticks([0.5, 0.55, 0.6])
+        ax[i].set_yticklabels(["0.5", "0.55", "0.6"], fontsize=14)
         ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
         ax[i].tick_params(labelleft=True)
         sns.despine(ax=ax[i])
@@ -602,8 +516,6 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
     plt.tight_layout()
     if save_fig:
         plt.savefig(f"figures/MVPA/decoding_modalities_attention.svg", dpi=300, bbox_inches="tight")
-
-
 
     return df_allROIs
 
@@ -652,7 +564,7 @@ def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attende
     ##df_summary = pd.DataFrame(summary_rows)
 
     # Plotting
-    fig, ax = plt.subplots(1,2, figsize=(10, 5), sharey=True)
+    fig, ax = plt.subplots(1,2, figsize=(12, 5), sharey=True)
 
     for i, col_val in enumerate(df_allROIs[col].unique()):
         df_sub = df_allROIs[df_allROIs[col] == col_val]
@@ -670,10 +582,12 @@ def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attende
 
     # Format both subplots
     for i, col_val in enumerate(df_allROIs[col].unique()):
-        ax[i].set_ylim(0.45, 0.7)
+        ax[i].set_ylim(0.45, 0.65)
         ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
-        ax[i].set_xticklabels(n_voxels_list, rotation=45)
+        ax[i].set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
+        ax.set_yticks([0.5, 0.55, 0.6])
+        ax.set_yticklabels(labels=["0.5", "0.55", "0.6"], fontsize=14)
         ax[i].set_title(f"{col} == {col_val}", fontsize=16)
         if i == 0:
             ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
