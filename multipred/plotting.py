@@ -435,7 +435,7 @@ def plot_errobars(
             fmt="o", color=color_map[h], capsize=5
         )
 
-    ax.axhline(0.5, color="gray", linestyle="--", linewidth=1)
+    ax.axhline(0.5, color="gray", linestyle="--")
     ax.set_xlabel(x.replace("_", " ").title())
     ax.set_ylabel(y.replace("_", " ").title())
     ax.legend(title=hue)
@@ -530,7 +530,6 @@ def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditory
 
     # Formatting
     ax.set_ylim(0.45, 0.7)
-    ax.axhline(y=0.5, color="grey", linestyle="--")
     ax.set_xlabel("Number of Voxels", fontsize=16)
     ax.set_xticks(n_voxels_int)
     ax.set_xticklabels(n_voxels_list, rotation=45)
@@ -593,13 +592,16 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
 
         # Formatting
         ax[i].set_ylim(0.45, 0.7)
-        ax[i].axhline(y=0.5, color="grey", linestyle="--")
         ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
         ax[i].set_xticklabels(n_voxels_list, rotation=45)
         ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
         ax[i].tick_params(labelleft=True)
         sns.despine(ax=ax[i])
+
+    plt.tight_layout()
+    if save_fig:
+        plt.savefig(f"figures/MVPA/decoding_modalities_attention.svg", dpi=300, bbox_inches="tight")
 
 
 
@@ -669,7 +671,6 @@ def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attende
     # Format both subplots
     for i, col_val in enumerate(df_allROIs[col].unique()):
         ax[i].set_ylim(0.45, 0.7)
-        ax[i].axhline(y=0.5, color="grey", linestyle="--")
         ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
         ax[i].set_xticklabels(n_voxels_list, rotation=45)
@@ -685,7 +686,7 @@ def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attende
 
     plt.tight_layout()
     if save_fig:
-        plt.savefig(f"figures/MVPA/decoding_modalities.svg", dpi=300, bbox_inches="tight")
+        plt.savefig(f"figures/MVPA/{ROI}_att{attended_modality}_decoding_nvoxels.svg", dpi=300, bbox_inches="tight")
     plt.show()
 
     return df_allROIs
