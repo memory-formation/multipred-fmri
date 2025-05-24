@@ -199,7 +199,7 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
     n_cols = len(unique_modalities)
 
     # Create the figure and axes for the subplots
-    fig, axes = plt.subplots(1, n_cols, figsize=(10, 5))
+    fig, axes = plt.subplots(1, n_cols, figsize=(10, 5), sharey=True)
 
 
     for i, modality in enumerate(unique_modalities):
@@ -243,6 +243,7 @@ def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim,
         ax.set_ylim(ylim)
         ax.set_xlim(-0.5, 1.5) 
         ax.set_yticks(yticks)
+        ax.set_yticklabels(labels=["0.50", "0.55", "0.60"], fontsize=14)
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
@@ -444,7 +445,7 @@ def plot_decoding_modalities(data_path, n_voxels_list, visualROI="EVC", auditory
     ax.set_xticks(n_voxels_int)
     ax.set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
     ax.set_yticks([0.5, 0.55, 0.6])
-    ax.set_yticklabels(labels=["0.5", "0.55", "0.6"], fontsize=14)
+    ax.set_yticklabels(labels=["0.50", "0.55", "0.60"], fontsize=14)
     ax.set_ylabel("Classification Accuracy", fontsize=16)
     sns.despine(ax=ax)
 
@@ -508,7 +509,7 @@ def plot_decoding_modalities_attention(data_path, n_voxels_list, ROIs = {"visual
         ax[i].set_xticks(n_voxels_int)
         ax[i].set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
         ax[i].set_yticks([0.5, 0.55, 0.6])
-        ax[i].set_yticklabels(["0.5", "0.55", "0.6"], fontsize=14)
+        ax[i].set_yticklabels(["0.50", "0.55", "0.60"], fontsize=14)
         ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
         ax[i].tick_params(labelleft=True)
         sns.despine(ax=ax[i])
@@ -582,12 +583,12 @@ def plot_decoding_pred(data_path, ROI, n_voxels_list, hue, col, palette, attende
 
     # Format both subplots
     for i, col_val in enumerate(df_allROIs[col].unique()):
-        ax[i].set_ylim(0.45, 0.65)
+        ax[i].set_ylim(0.48, 0.65)
         ax[i].set_xlabel("Number of Voxels", fontsize=16)
         ax[i].set_xticks(n_voxels_int)
         ax[i].set_xticklabels(n_voxels_list, rotation=45, fontsize=14)
-        ax.set_yticks([0.5, 0.55, 0.6])
-        ax.set_yticklabels(labels=["0.5", "0.55", "0.6"], fontsize=14)
+        ax[i].set_yticks([0.5, 0.55, 0.6])
+        ax[i].set_yticklabels(labels=["0.50", "0.55", "0.60"], fontsize=14)
         ax[i].set_title(f"{col} == {col_val}", fontsize=16)
         if i == 0:
             ax[i].set_ylabel(f"Classification Accuracy in {ROI}", fontsize=16)
