@@ -653,6 +653,7 @@ def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["
         hue=hue,
         ax=ax,
         dodge=True,
+        linewidth=4,
         join=True,
         errorbar=None,
         palette=palette,
@@ -688,15 +689,15 @@ def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["
                 y=row["group_mean"],
                 yerr=row["corrected_se"],
                 fmt='none',
-                capsize=4,
+                capsize=6,
                 color=color,
-                elinewidth=2
+                elinewidth=4
             )
 
     # Final plot adjustments
     ax.set_xlabel(x.capitalize())
     ax.set_ylabel(y.capitalize())
-    ax.axhline(hline, ls="--", color="black")
+    ax.axhline(hline, ls="--", color="grey")
     ax.set_xticks(range(len(stim_categories)))
     ax.set_xticklabels(stim_categories)
     ax.spines['right'].set_visible(False)
@@ -709,7 +710,7 @@ def pointplot_morey(dat, x, y, hue, id_col="id", swarmplot_plot=True, palette=["
         plt.show()
 
 
-def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax, num_ticks=5):
+def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax, num_ticks=3):
     """
     Plots a learning interaction with barplots. Looks good only if y is centered around 0.
     
@@ -725,7 +726,7 @@ def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax
     - num_ticks: Odd number of y-ticks (default is 5)
     """
     # Direct comparisons between expected stimuli (without taking into account the presented stimulus)
-    sns.barplot(data=data, x=x, y=y, hue=hue, palette=palette, ci=95, ax=ax)
+    sns.barplot(data=data, x=x, y=y, hue=hue, palette=palette, ax=ax) #  ci=95,
 
     # Set axis labels and title
     ax.set_xticks([0, 1])  # Set tick positions
@@ -749,33 +750,20 @@ def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax
     ax.legend(title="Expected Stimulus")
 
     # Add horizontal reference line
-    ax.axhline(hline, color="black", linestyle="--")
+    ax.axhline(hline, color="grey", linestyle="--", linewidth=3)
+
+     # Set x-ticks and labels
+    ax.set_xlabel("Visual pair", fontsize=18)
+    ax.set_xticks([0, 1], ["Not learned", "Learned"], fontsize=14)
+    # Set y-ticks and labels
+    ax.set_ylabel(f'Probability of "CW" classification', fontsize=18)
+    ax.set_yticks([-0.03, 0, 0.03])
+    ax.set_yticklabels(["0.47", "0.50", "0.53"], fontsize=16)
+    ax.set_ylim(-0.04, 0.04)  # Adjust y-limits to fit the data
 
     # Remove top/right spines
     sns.despine(ax=ax)
 
-    # ** Generalizing Y-Axis Scaling **
-    # Determine min/max centered probability values
-    y_min, y_max = data[y].min(), data[y].max()
-
-    # Ensure symmetry around zero
-    y_abs_max = max(abs(y_min), abs(y_max))
-
-    # Define tick step dynamically based on range
-    tick_step = round((2 * y_abs_max) / (num_ticks - 1), 3)  # Ensure num_ticks is used
-
-    # Define symmetric y-tick positions centered at 0
-    y_ticks = np.linspace(-y_abs_max, y_abs_max, num_ticks)
-
-    # Convert centered probability values back to original probability scale
-    original_ticks = [tick + 0.5 for tick in y_ticks]
-
-    # Set y-ticks and labels
-    ax.set_yticks(y_ticks)
-    ax.set_yticklabels([f"{tick*100:.0f}%" for tick in original_ticks])
-
-    # Adjust y-limits dynamically with a small buffer
-    ax.set_ylim(y_ticks[0] - tick_step * 0.5, y_ticks[-1] + tick_step * 0.5)
 
 
 # WHOLE BRAIN PLOTTING
