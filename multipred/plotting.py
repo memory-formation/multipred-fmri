@@ -188,6 +188,138 @@ def barplot_morey(dat, x, y, hue, hue_label, palette1, palette2, barplot_plot=Tr
             ax.legend(handles=legend_handles, title=hue_label, bbox_to_anchor=(1, 1), title_fontsize=fontsize, fontsize=fontsize-2, loc='best', frameon=True)
 
 
+def plot_crossmodal_by_aEXP(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim, yticks, legend=False):
+
+    x_label = "attended modality"
+
+    aEXP_cols = [0, 1]
+    n_cols = len(aEXP_cols)
+
+    # Create the figure and axes for the subplots
+    fig, axes = plt.subplots(1, n_cols, figsize=(10, 5), sharey=True)
+
+
+    for i, aEXP in enumerate(aEXP_cols):
+        dat = df[
+            df["a_pred"] == aEXP
+        ].copy()  
+
+        # Plot the data
+        ax = axes[i]  # Get the specific axis for the current subplot
+
+        swarmplot_plot = False
+        within_lines = False
+        barplot_plot = True
+
+        # Define the color palettes
+        palette1 = ["firebrick", "turquoise"]
+        palette2 = ["lightcoral", "powderblue"]
+
+        # Custom plotting function call
+        barplot_morey(
+            dat,
+            x,
+            y,
+            hue,
+            hue_label,
+            palette1,
+            palette2,
+            barplot_plot,
+            swarmplot_plot,
+            within_lines,
+            ax=ax,
+            legend=False
+        )
+
+        # Customize each subplot
+        ax.set_ylabel(f"Classification accuracy in {ROI}")
+        ax.set_xlabel(x_label)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(labels =["Auditory", "Visual"], fontsize=14)
+        ax.set_title(f"Auditory predicted: {aEXP}")
+        ax.set_ylim(ylim)
+        ax.set_xlim(-0.5, 1.5) 
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(labels=["0.50", "0.55", "0.60"], fontsize=14)
+        ax.axhline(0.5, color="grey", linestyle="--")
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+
+    # Adjust layout to prevent overlapping
+    plt.tight_layout()
+
+    if save_fig:
+        plt.savefig(f"figures/MVPA/{ROI}_{n_voxels}_acc_interaction_ver2.svg", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+
+def plot_crossmodal_by_vEXP(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim, yticks, legend=False):
+
+    x_label = "attended modality"
+
+    vEXP_cols = [0, 1]
+    n_cols = len(vEXP_cols)
+
+    # Create the figure and axes for the subplots
+    fig, axes = plt.subplots(1, n_cols, figsize=(10, 5), sharey=True)
+
+
+    for i, vEXP in enumerate(vEXP_cols):
+        dat = df[
+            df["v_pred"] == vEXP
+        ].copy()  
+
+        # Plot the data
+        ax = axes[i]  # Get the specific axis for the current subplot
+
+        swarmplot_plot = False
+        within_lines = False
+        barplot_plot = True
+
+        # Define the color palettes
+        palette1 = ["firebrick", "turquoise"]
+        palette2 = ["lightcoral", "powderblue"]
+
+        # Custom plotting function call
+        barplot_morey(
+            dat,
+            x,
+            y,
+            hue,
+            hue_label,
+            palette1,
+            palette2,
+            barplot_plot,
+            swarmplot_plot,
+            within_lines,
+            ax=ax,
+            legend=False
+        )
+
+        # Customize each subplot
+        ax.set_ylabel(f"Classification accuracy in {ROI}")
+        ax.set_xlabel(x_label)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(labels =["Auditory", "Visual"], fontsize=14)
+        ax.set_title(f"Visual predicted: {vEXP}")
+        ax.set_ylim(ylim)
+        ax.set_xlim(-0.5, 1.5) 
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(labels=["0.50", "0.55", "0.60"], fontsize=14)
+        ax.axhline(0.5, color="grey", linestyle="--")
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+
+    # Adjust layout to prevent overlapping
+    plt.tight_layout()
+
+    if save_fig:
+        plt.savefig(f"figures/MVPA/{ROI}_{n_voxels}_acc_interaction_ver2.svg", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+
 def plot_crossmodal(df, y, x, hue, hue_label, id, ROI, n_voxels, save_fig, ylim, yticks, legend=False):
 
     if x == "a_pred":
