@@ -30,7 +30,7 @@ This file is used by the project scripts via the python-dotenv library to locate
 ## Dataset
 The dataset is hosted on OpenNeuro and **must be downloaded separately**. To ensure proper integration:
 1. Download the dataset from OpenNeuro:
-   - [Dataset Link](https://openneuro.org/datasets/XXXXX)
+   - [Dataset Link](https://openneuro.org/datasets/ds006506)
 2. Place the dataset in the cloned repository folder, and rename it as *data/*:
    ```
    mulitpred-fmri/
