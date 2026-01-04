@@ -172,3 +172,79 @@ def decoding_crossmodal_stats(
     ttest_df = ttest_df.round({"t": 2, "df": 0, "p_uncorrected": 3, "p_corrected": 3, "d": 2})
 
     return anova_df, ttest_df
+
+
+def decoding_crossmodal_stats_byaEXP(
+    df,
+    dv="correct",
+    subject="subj",
+    within_factors=("modality", "v_pred"),
+    voxel_label_col="n_voxels_label",
+    p_adjust_method="fdr_bh",
+    alternative="two-sided",
+):
+    """
+    rmANOVA per ROI size and FDR-corrected pairwise v_pred tests across a_pred levels.
+    """
+    factor1, factor2 = within_factors
+    anova_results = []
+    all_ttests = []
+
+    for roi_label, df_roi in df.groupby(voxel_label_col):
+        aov = pg.rm_anova(
+            dv=dv,
+            within=[factor1, factor2],
+            subject=subject,
+            data=df_roi,
+            detailed=True
+        )
+        aov[voxel_label_col] = roi_label
+        anova_results.append(aov)
+
+        roi_tests = []
+        for a_val in df_roi[factor1].unique():
+            subset = df_roi[df_roi[factor1] == a_val]
+            res = pg.pairwise_tests(
+                dv=dv,
+                within=factor2,
+                subject=subject,
+                data=subset,
+                padjust=None,
+                effsize="cohen",
+                alternative=alternative
+            )
+            res[factor1] = a_val
+            res[voxel_label_col] = roi_label
+            roi_tests.append(res)
+
+        roi_tests_df = pd.concat(roi_tests, ignore_index=True)
+        reject, pvals_corr, _, _ = multipletests(
+            roi_tests_df["p-unc"].values, alpha=0.05, method=p_adjust_method
+        )
+        roi_tests_df["p-corr"] = np.round(pvals_corr, 3)
+        roi_tests_df["significance"] = [get_sig_stars(p) for p in pvals_corr]
+
+        all_ttests.append(roi_tests_df)
+
+    anova_df = pd.concat(anova_results, ignore_index=True)
+    anova_df = anova_df.rename(columns={
+        "Source": "Effect", "DF": "df", "SS": "SS", "MS": "MS",
+        "F": "F", "p-GG-corr": "p", "np2": "η²ₚ", voxel_label_col: "n_voxels_label"
+    })
+    anova_df = anova_df.round({"SS": 3, "MS": 3, "F": 2, "p": 3, "η²ₚ": 3})
+    anova_df["significance"] = [get_sig_stars(p) for p in anova_df["p"]]
+
+    ttest_df = pd.concat(all_ttests, ignore_index=True)
+    ttest_df = ttest_df.rename(columns={
+        voxel_label_col: "n_voxels_label",
+        factor1: "a_pred",
+        "Contrast": "comparison",
+        "T": "t",
+        "dof": "df",
+        "p-unc": "p_uncorrected",
+        "p-corr": "p_corrected",
+        "cohen-d": "d"
+    })
+    ttest_df = ttest_df.round({"t": 2, "df": 0, "p_uncorrected": 3, "p_corrected": 3, "d": 2})
+
+    return anova_df, ttest_df
