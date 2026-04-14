@@ -900,6 +900,116 @@ def plot_learning_interaction(data, x, y, hue, prob_stimulus, palette, hline, ax
 
 # WHOLE BRAIN PLOTTING
 
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm, colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from matplotlib.colors import LinearSegmentedColormap
+
+# bright_coolwarm = LinearSegmentedColormap.from_list(
+#     "bright_coolwarm",
+#     [
+#         (0.0, "#0044fe"),   # brighter blue
+#         (0.5, "#666666"),   # light gray center, not white
+#         (1.0, "#fa0d00"),   # brighter red
+#     ]
+# )
+
+
+def add_bivariate_legend(
+    fig,
+    anchor_ax,
+    clim=(-30, 30),
+    z_lim=(0, 4),
+    contour_level=2.3,
+    cmap_name= "bwr", 
+    textcolor="black",
+    facecolor="white",
+    label_x="Contrast estimate (COPE)",
+    label_y="|Z| mapped to opacity",
+):
+    """
+    Add a 2D legend showing:
+    - x-axis: cope values mapped to color
+    - y-axis: |Z| values mapped to alpha transparency
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure to draw on.
+    anchor_ax : matplotlib.axes.Axes
+        Axis relative to which the legend is placed.
+    clim : tuple
+        Min/max for cope colormap.
+    z_lim : tuple
+        Min/max for |Z| alpha mapping.
+    contour_level : float
+        Threshold used for cluster contours; shown as a reference line.
+    cmap_name : str
+        Matplotlib colormap name.
+    textcolor : str
+        Text/axis color.
+    facecolor : str
+        Background color.
+    """
+
+    # Create legend axis below the last slice
+    divider = make_axes_locatable(anchor_ax)
+    lax = divider.append_axes("bottom", size="18%", pad=0.35)
+
+    # Grid for legend
+    nx, ny = 256, 256
+    x = np.linspace(clim[0], clim[1], nx)
+    y = np.linspace(z_lim[0], z_lim[1], ny)
+
+    X, Y = np.meshgrid(x, y)
+
+    # Normalize cope to colormap
+    norm = colors.Normalize(vmin=clim[0], vmax=clim[1])
+    cmap = cm.get_cmap(cmap_name)
+    rgba = cmap(norm(X))
+
+    # Map |Z| to alpha exactly as in your plotting code
+    alpha = np.clip((Y - z_lim[0]) / (z_lim[1] - z_lim[0]), 0, 1)
+    rgba[..., 3] = alpha
+
+    # White background so transparency is visible exactly as in figure
+    lax.set_facecolor(facecolor)
+
+    # Show RGBA legend
+    lax.imshow(
+        rgba,
+        origin="lower",
+        aspect="auto",
+        extent=[clim[0], clim[1], z_lim[0], z_lim[1]],
+        interpolation="nearest",
+    )
+
+    # Reference line for contour threshold
+    lax.axhline(contour_level, color="black", linewidth=2, linestyle="-")
+
+    # Labels and style
+    lax.set_xlabel(label_x, color=textcolor)
+    lax.set_ylabel(label_y, color=textcolor)
+    lax.tick_params(colors=textcolor)
+
+    for spine in lax.spines.values():
+        spine.set_edgecolor(textcolor)
+
+    # Optional annotation for threshold
+    lax.text(
+        clim[1],
+        contour_level,
+        f"  contour = {contour_level}",
+        va="center",
+        ha="left",
+        color=textcolor,
+        fontsize=9,
+    )
+
+    return lax
+
 def plot_static_slices(
     cope,
     zstat,
@@ -997,25 +1107,44 @@ def plot_static_slices(
         ax.axis("off")
         ax.set_title(f"Slice {pos} ({axis})", color=textcolor)
 
-    # # Add colorbar
-    divider = make_axes_locatable(axes[-1])
-    cax = divider.append_axes("bottom", size="20%", pad=0.5)  # Adjust size as needed
-    cbar = fig.colorbar(im, cax=cax, orientation="horizontal")
-    cbar.set_label("EXP - UEX", color=textcolor)
+    # # # Add colorbar
+    # divider = make_axes_locatable(axes[-1])
+    # cax = divider.append_axes("bottom", size="20%", pad=0.5)  # Adjust size as needed
+    # cbar = fig.colorbar(im, cax=cax, orientation="horizontal")
+    # cbar.set_label("EXP - UEX", color=textcolor)
 
-    if not z_lim:
-        cbar.ax.axhline(
-            y=contour_level / np.max(zstat_slice), color="black", linewidth=2
+    # if not z_lim:
+    #     cbar.ax.axhline(
+    #         y=contour_level / np.max(zstat_slice), color="black", linewidth=2
+    #     )
+    # else:
+    #     cbar.ax.axhline(y=contour_level / z_lim[1], color="black", linewidth=2)
+
+    # # Set colorbar text color
+    # cbar.ax.xaxis.set_tick_params(color=textcolor)
+    # cbar.ax.yaxis.set_tick_params(color=textcolor)
+    # plt.setp(plt.getp(cbar.ax.axes, "xticklabels"), color=textcolor)
+    # plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color=textcolor)
+    # plt.suptitle(title, color=textcolor)
+
+        # Add custom 2D legend
+    if z_lim is False:
+        raise ValueError(
+            "A fixed z_lim is required to draw the 2D transparency legend consistently."
         )
-    else:
-        cbar.ax.axhline(y=contour_level / z_lim[1], color="black", linewidth=2)
 
-    # Set colorbar text color
-    cbar.ax.xaxis.set_tick_params(color=textcolor)
-    cbar.ax.yaxis.set_tick_params(color=textcolor)
-    plt.setp(plt.getp(cbar.ax.axes, "xticklabels"), color=textcolor)
-    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color=textcolor)
-    plt.suptitle(title, color=textcolor)
+    add_bivariate_legend(
+        fig=fig,
+        anchor_ax=axes[-1],
+        clim=clim,
+        z_lim=tuple(z_lim),
+        contour_level=contour_level,
+        cmap_name="bwr",
+        textcolor=textcolor,
+        facecolor=facecolor,
+        label_x="UEX - EXP",
+        label_y="0 |Z| 4",
+    )
 
     # Return the figure for saving
     return fig
